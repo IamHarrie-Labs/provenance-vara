@@ -1,0 +1,178 @@
+
+!@sails: 1.0.0
+
+service Escrow@0xff61297bbbe08da4 {
+    events {
+        Cancelled {
+            id: u64,
+        },
+        CompletionClaimed {
+            id: u64,
+            worker: ActorId,
+        },
+        Created {
+            id: u64,
+            depositor: ActorId,
+            worker: ActorId,
+            amount: u128,
+            deadline_block: u32,
+        },
+        Deposited {
+            id: u64,
+            amount: u128,
+        },
+        Refunded {
+            id: u64,
+            depositor: ActorId,
+            amount: u128,
+            reason: String,
+        },
+        Settled {
+            id: u64,
+            worker: ActorId,
+            amount: u128,
+        },
+    }
+    functions {
+        /// Cancel a settlement. Depositor can cancel before funding.
+        /// Depositor can also force-refund after deadline if stuck in Active/Settling.
+        Cancel(settlement_id: u64);
+        /// Worker signals work is done. Transitions to Settling.
+        /// After this, anyone can call `settle()` to trigger verification.
+        ClaimCompletion(settlement_id: u64);
+        /// Create a settlement. Returns `settlement_id`.
+        /// `deadline_blocks` — blocks from now before a stalled settlement can be refunded.
+        CreateSettlement(worker: ActorId, amount: u128, spec: SailsCallSpec, deadline_blocks: u32) -> u64;
+        /// Fund a settlement. The attached VARA value must equal `settlement.amount`.
+        /// Excess is refunded to the caller.
+        Deposit(settlement_id: u64);
+        @query
+        GetNextId() -> u64;
+        @query
+        GetSettlement(id: u64) -> Option<Settlement>;
+        /// Trigger on-chain verification. Sends async query to target_program,
+        /// compares reply against spec. Releases to worker on match, or refunds
+        /// depositor if deadline has passed. Anyone can call this.
+        Settle(settlement_id: u64) -> SettleOutcome;
+    }
+    types {
+        /// v1 Verifier: cross-program observable state query.
+        /// 
+        /// When `Settle` is called, Provenance sends `payload_bytes` to `target_program`
+        /// and compares the full reply bytes against `expected_reply`. A match proves
+        /// the worker fulfilled the obligation.
+        /// 
+        /// Callers are responsible for encoding `payload_bytes` in the Sails wire
+        /// format (route header + SCALE args) and encoding `expected_reply` to match
+        /// the full reply the target program emits (route echo + result).
+        /// The TypeScript SDK handles this automatically.
+        struct SailsCallSpec {
+            /// The Vara program whose state we query to verify fulfillment
+            target_program: ActorId,
+            /// Complete Sails-encoded query payload (route header + SCALE args)
+            payload_bytes: [u8],
+            /// Expected full reply bytes from target — match = work proven
+            expected_reply: [u8],
+        }
+        enum SettleOutcome {
+            Settled,
+            Refunded,
+            StillPending,
+        }
+        struct Settlement {
+            id: u64,
+            depositor: ActorId,
+            worker: ActorId,
+            /// Locked amount in minimal VARA units (1 VARA = 10^12)
+            amount: u128,
+            spec: SailsCallSpec,
+            status: SettlementStatus,
+            created_block: u32,
+            deadline_block: u32,
+        }
+        enum SettlementStatus {
+            /// Created, not yet funded
+            Pending,
+            /// Funded, awaiting ClaimCompletion
+            Active,
+            /// ClaimCompletion submitted, Settle can be triggered
+            Settling,
+            /// Funds released to worker — terminal
+            Settled,
+            /// Funds returned to depositor — terminal
+            Refunded,
+            /// Cancelled before funding — terminal
+            Cancelled,
+        }
+    }
+}
+
+service Registry@0x8a9ab574935aad17 {
+    functions {
+        @query
+        GetByDepositor(actor: ActorId) -> [u64];
+        @query
+        GetByWorker(actor: ActorId) -> [u64];
+        @query
+        ListActive(offset: u64, limit: u64) -> [Settlement];
+        /// Returns (total_settlements, active_count, settled_count)
+        @query
+        Stats() -> (u64, u64, u64);
+    }
+    types {
+        /// v1 Verifier: cross-program observable state query.
+        /// 
+        /// When `Settle` is called, Provenance sends `payload_bytes` to `target_program`
+        /// and compares the full reply bytes against `expected_reply`. A match proves
+        /// the worker fulfilled the obligation.
+        /// 
+        /// Callers are responsible for encoding `payload_bytes` in the Sails wire
+        /// format (route header + SCALE args) and encoding `expected_reply` to match
+        /// the full reply the target program emits (route echo + result).
+        /// The TypeScript SDK handles this automatically.
+        struct SailsCallSpec {
+            /// The Vara program whose state we query to verify fulfillment
+            target_program: ActorId,
+            /// Complete Sails-encoded query payload (route header + SCALE args)
+            payload_bytes: [u8],
+            /// Expected full reply bytes from target — match = work proven
+            expected_reply: [u8],
+        }
+        struct Settlement {
+            id: u64,
+            depositor: ActorId,
+            worker: ActorId,
+            /// Locked amount in minimal VARA units (1 VARA = 10^12)
+            amount: u128,
+            spec: SailsCallSpec,
+            status: SettlementStatus,
+            created_block: u32,
+            deadline_block: u32,
+        }
+        enum SettlementStatus {
+            /// Created, not yet funded
+            Pending,
+            /// Funded, awaiting ClaimCompletion
+            Active,
+            /// ClaimCompletion submitted, Settle can be triggered
+            Settling,
+            /// Funds released to worker — terminal
+            Settled,
+            /// Funds returned to depositor — terminal
+            Refunded,
+            /// Cancelled before funding — terminal
+            Cancelled,
+        }
+    }
+}
+
+program Provenance {
+    constructors {
+        /// Deploy the Provenance settlement program.
+        New();
+    }
+    services {
+        Escrow@0xff61297bbbe08da4,
+        Registry@0x8a9ab574935aad17,
+    }
+}
