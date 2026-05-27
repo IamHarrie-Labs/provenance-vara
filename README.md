@@ -4,98 +4,180 @@
 
 ## What it does
 
-Agents escrow VARA funds. Funds release **automatically** when an on-chain verifier confirms the worker fulfilled their obligation via cross-program state query. No human approver, no trust required — just deterministic on-chain proof.
+Agents escrow VARA funds. Funds release **automatically** when an on-chain verifier confirms the worker fulfilled their obligation — no human approver, no trust required.
 
-**The gap:** `infinite-bounty-v3` uses manual approval. Manual doesn't scale for autonomous agents. Provenance replaces the human approver with cryptographic proof.
+**The gap:** `infinite-bounty-v3` uses manual approval. Manual doesn't scale for autonomous agents. Provenance replaces the human approver with cryptographic, deterministic, on-chain proof.
+
+```
+infinite-bounty-v3:  PostBounty → ClaimBounty → SubmitWork → ✋ ApproveBounty (human)
+Provenance:          Create     → Deposit      → [work done] → ⚡ Settle() (automatic)
+```
 
 ## Live on Vara Mainnet
 
 ```
 Program ID:  0xb165fca0d82ebd1f01bd64482c762f50d06a0ebc22002707f9ea505a19cc3663
-Handle:      prov-escrow (Vara Agent Network)
+Handle:      prov-escrow  (Vara Agent Network registry)
 Network:     Vara mainnet
 ```
 
-## 3-Line Integration (TypeScript SDK — coming soon)
+## 3-Line Integration (TypeScript SDK)
 
 ```ts
-import { Provenance } from "@provenance/vara-sdk";
+import { Provenance, VARA } from "./sdk/src";
+
+const provenance = await Provenance(myAccount);
 
 const settlement = await provenance.create({
   worker: workerAgentId,
   amount: 5n * VARA,
-  proof: { call: { to: targetProgram, payload: encodedQuery, expectedReply } }
+  proof: {
+    // Provenance queries this program to verify work
+    targetProgram: "0xYOUR_TARGET_PROGRAM",
+    // Sails-encoded query payload (route + SCALE args)
+    payloadBytes: encodedQuery,
+    // Expected reply bytes — match = work proven, funds released
+    expectedReply: encodedExpectedReply,
+  },
 });
-await settlement.deposit();   // lock funds
-// ...worker does the work, makes the on-chain call...
-await settlement.settle();    // deterministic verify → atomic release or refund
+
+await settlement.deposit();   // lock 5 VARA in escrow
+// ...worker does the work, makes their on-chain call...
+const outcome = await settlement.settle(); // verify + release atomically
+// → "Settled"      (funds released to worker)
+// → "Refunded"     (deadline passed, funds back to depositor)
+// → "StillPending" (wrong proof but deadline not passed — retry)
+```
+
+## infinite-bounty-v3 Integration
+
+Provenance ships with a bridge adapter that connects to [`infinite-bounty-v3`](https://agents-api.vara.network/graphql) (`0x747d09...`):
+
+```ts
+import { InfiniteBountyAdapter } from "./agents/infinite-bounty-adapter";
+
+// Scan open bounties
+await adapter.scanBounties();
+
+// Mirror a claimed bounty as a Provenance settlement
+// Proof: GetBounty(id) returns status == Submitted
+await adapter.mirrorBounty(42n);
+
+// Watch for new claims and auto-mirror them
+await adapter.watch(depositorAccount);
+```
+
+**How it works:**
+1. Agent A posts a bounty on infinite-bounty-v3 (`PostBounty`)
+2. Agent B claims it (`ClaimBounty`) → adapter detects the claim
+3. Adapter creates a parallel Provenance settlement with proof spec:
+   - Target: `infinite-bounty-v3` program
+   - Query: `GetBounty(id)` — reads on-chain state
+   - Expected: bounty status == `Submitted`
+4. Agent B submits work (`SubmitWork`) → bounty status changes on-chain
+5. Provenance `Settle()` queries infinite-bounty-v3, sees `Submitted`, auto-releases VARA
+6. **No manual `ApproveBounty` needed** — pure on-chain verification
+
+```bash
+# Demo commands
+npm run adapter:scan          # list open bounties
+npm run adapter:mirror 42     # mirror bounty #42
+npm run adapter:watch         # continuous watch mode
+
+# Two-agent demo
+npm run demo:happy    # worker fulfills → funds auto-released
+npm run demo:failure  # deadline passes → funds auto-refunded
+npm run demo:stats    # network totals
 ```
 
 ## Settlement Lifecycle
 
 ```
-CreateSettlement → Deposit → ClaimCompletion → Settle → [Settled | Refunded]
-                                                          ↑ on-chain verifier
+CreateSettlement
+      ↓
+   Deposit  [funds locked in escrow]
+      ↓
+ClaimCompletion  [worker signals done]
+      ↓
+   Settle()  ──→  cross-program query to target_program
+      ↓                    ↓
+  reply == expected   reply != expected + deadline passed
+      ↓                    ↓
+  "Settled"           "Refunded"
+  (to worker)         (to depositor)
 ```
 
-## Services
+## Escrow Service
 
-### Escrow (settlements)
 | Method | Description |
 |--------|-------------|
 | `CreateSettlement(worker, amount, spec, deadline_blocks)` | Create settlement, returns ID |
-| `Deposit(settlement_id)` [payable] | Fund settlement with exact VARA amount |
-| `ClaimCompletion(settlement_id)` | Worker signals work done |
-| `Settle(settlement_id)` | Verify on-chain + release or refund |
-| `Cancel(settlement_id)` | Cancel (before funding) or force-refund (after deadline) |
-| `GetSettlement(id)` | Query settlement state |
+| `Deposit(settlement_id)` [payable] | Lock exact VARA amount in escrow |
+| `ClaimCompletion(settlement_id)` | Worker signals work is done |
+| `Settle(settlement_id)` | Verify on-chain + release or refund atomically |
+| `Cancel(settlement_id)` | Cancel (unfunded) or force-refund (after deadline) |
+| `GetSettlement(id)` [query] | Read settlement state |
+| `GetNextId()` [query] | Next settlement ID |
 
-### Registry (discovery)
+## Registry Service
+
 | Method | Description |
 |--------|-------------|
-| `ListActive(offset, limit)` | Paginate active settlements |
-| `GetByDepositor(actor)` | All settlement IDs for a depositor |
-| `GetByWorker(actor)` | All settlement IDs for a worker |
-| `Stats()` | (total, active, settled) counts |
+| `ListActive(offset, limit)` [query] | Paginate active settlements |
+| `GetByDepositor(actor)` [query] | All settlement IDs for a depositor |
+| `GetByWorker(actor)` [query] | All settlement IDs for a worker |
+| `Stats()` [query] | `(total, active, settled)` network totals |
 
 ## Verifier v1: SailsCallSpec
 
 ```rust
 SailsCallSpec {
-    target_program: ActorId,   // program to query for proof
-    payload_bytes: Vec<u8>,    // Sails-encoded query payload
+    target_program: ActorId,   // program to query for proof of fulfillment
+    payload_bytes:  Vec<u8>,   // Sails-encoded query payload (route + SCALE args)
     expected_reply: Vec<u8>,   // expected full reply bytes — match = work proven
 }
 ```
 
-When `Settle()` is called, Provenance sends an async cross-program query to `target_program` and compares the reply against `expected_reply`. Match → funds go to worker. No match + deadline passed → funds refund to depositor.
+When `Settle()` is called, Provenance sends an async cross-program message to `target_program` with `payload_bytes` and compares the reply to `expected_reply`. Exact match → release. No match and deadline passed → refund. No match and deadline still open → StillPending (can retry).
 
-## Building
+## Project Structure
+
+```
+├── contract/provenance/    Sails Rust program (on-chain)
+│   ├── app/src/lib.rs      EscrowService + RegistryService
+│   ├── provenance.idl      Sails interface definition
+│   └── provenance-clean.idl IDL for vara-wallet CLI
+├── sdk/src/                TypeScript SDK
+│   ├── provenance.ts       ProvenanceSDK + SettlementHandle
+│   ├── types.ts            All types
+│   └── index.ts            Exports
+├── agents/
+│   ├── infinite-bounty-adapter.ts  Bridge to infinite-bounty-v3
+│   └── demo-two-agents.ts          Hackathon demo script
+├── idl/
+│   └── infinite-bounty-v3.idl
+└── README.md
+```
+
+## Building the Contract
 
 ```bash
 cd contract/provenance
 cargo build --release
+# Output: target/wasm-projects/release/wasm32v1-none/release/provenance.wasm
 ```
 
-Requires: Rust stable with `wasm32-unknown-unknown` + `wasm32v1-none` targets, `cargo-sails`.
-
-## IDL
-
-```
-contract/provenance/provenance.idl
-```
+Requires: Rust stable + `wasm32v1-none` target + `cargo-sails`.
 
 ## Roadmap
 
-- **v1 (now):** Cross-program state query verifier
-- **v2:** Witness mode (proof-of-tx-hash)
+- **v1 (live):** Cross-program state query verifier — SailsCallSpec
+- **v2:** Witness mode (proof-of-tx-hash inclusion)
 - **v3:** Dispute / arbitration actor
 - **v4:** Insurance pool for agent-to-agent commerce
 
-## Hackathon
-
-Built for [Vara Agent Network Hackathon Season 1](https://agents.vara.network) — Track 01: Agent Services.
-
 ---
 
-*"Safety rails for AI commerce"*
+*Provenance is the settlement primitive for autonomous agent economies.*
+
+**Built for [Vara Agent Network Hackathon Season 1](https://agents.vara.network) — Track 01: Agent Services.**

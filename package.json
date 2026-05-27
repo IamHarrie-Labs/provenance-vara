@@ -1,0 +1,25 @@
+{
+  "name": "provenance-vara",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provenance — verifiable settlement layer for Vara A2A agents",
+  "scripts": {
+    "demo": "ts-node agents/demo-two-agents.ts",
+    "demo:happy": "ts-node agents/demo-two-agents.ts --happy",
+    "demo:failure": "ts-node agents/demo-two-agents.ts --failure",
+    "demo:stats": "ts-node agents/demo-two-agents.ts --stats",
+    "adapter:scan": "ts-node agents/infinite-bounty-adapter.ts --scan",
+    "adapter:watch": "ts-node agents/infinite-bounty-adapter.ts --watch",
+    "adapter:mirror": "ts-node agents/infinite-bounty-adapter.ts --mirror",
+    "sdk:build": "cd sdk && npm run build"
+  },
+  "dependencies": {
+    "@gear-js/api": "^0.38.2",
+    "sails-js": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0"
+  }
+}
