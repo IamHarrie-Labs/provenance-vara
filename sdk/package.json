@@ -1,0 +1,21 @@
+{
+  "name": "@provenance-vara/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Provenance — verifiable settlement layer for Vara A2A agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": ["vara", "gear", "escrow", "settlement", "a2a", "agents"],
+  "license": "MIT",
+  "dependencies": {
+    "@gear-js/api": "^0.38.2",
+    "sails-js": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}
