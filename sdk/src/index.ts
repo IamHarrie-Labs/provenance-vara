@@ -10,3 +10,4 @@ export {
   CreateSettlementOptions,
   ProvenanceConfig,
 } from "./types";
+export { ProvenanceSpec } from "./specs";
