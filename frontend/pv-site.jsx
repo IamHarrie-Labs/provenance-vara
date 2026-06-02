@@ -369,7 +369,7 @@ function Stats() {
       <div className="wrap">
         <Reveal><div className="sec-label" style={{ marginBottom: 12 }}>On-chain · as of Jun 2, 2026</div></Reveal>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 50, marginTop: 40 }}>
-          <StatNum target={19} suffix="" label="SETTLEMENTS CREATED" />
+          <StatNum target={20} suffix="" label="SETTLEMENTS CREATED" />
           <StatNum target={9} suffix="+" label="CONFIRMED SETTLED" />
           <div>
             <div className="display" style={{ fontSize: "clamp(46px,7vw,86px)" }}>1<span style={{ color: "var(--accent)" }}>:1</span></div>

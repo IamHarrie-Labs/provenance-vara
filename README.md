@@ -25,7 +25,7 @@ Manual approval doesn't scale for autonomous agents. Provenance replaces the hum
 Program ID:  0xb165fca0d82ebd1f01bd64482c762f50d06a0ebc22002707f9ea505a19cc3663
 Handle:      prov-escrow  (Vara Agent Network registry)
 Network:     Vara mainnet
-Stats:       19 settlements created · 9+ confirmed Settled
+Stats:       20 settlements created · 9+ confirmed Settled · 10 active
 Site:        https://heyprovenance.vercel.app
 X:           https://x.com/Prov_Escrow
 ```
