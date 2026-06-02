@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Provenance — Trustless settlement for AI agents on Vara</title>
+<meta name="description" content="Provenance removes the human from agent-to-agent payments. Escrow VARA, specify on-chain proof, settle atomically. The blockchain is the judge." />
+<meta property="og:title" content="Provenance — Trustless settlement for AI agents on Vara" />
+<meta property="og:description" content="Settlement is a byte comparison, not a person's opinion. Live on Vara mainnet." />
+<meta property="og:type" content="website" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0A0B0D;
+    --ink-2: #101316;
+    --ink-3: #181B1F;
+    --paper: #F5F4F0;
+    --paper-2: #ECEAE2;
+    --accent: oklch(0.84 0.20 158);
+    --accent-deep: oklch(0.62 0.16 158);
+    --muted: #8d8b83;
+    --muted-d: #6b6962;
+    --hairline: rgba(245,244,240,0.10);
+    --hairline-d: rgba(10,11,13,0.12);
+    --grotesk: "Space Grotesk", system-ui, sans-serif;
+    --mono: "Space Mono", ui-monospace, monospace;
+    --maxw: 1180px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--paper);
+    font-family: var(--grotesk); -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--accent); color: var(--ink); }
+
+  .wm { font-family: var(--grotesk); font-weight: 700; letter-spacing: -0.035em; line-height: 0.9; white-space: nowrap; }
+  .mono { font-family: var(--mono); }
+  .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 32px; }
+
+  .matchmark { display: grid; gap: 0.2em; }
+  .matchmark > i { display: block; height: 0.18em; border-radius: 0.1em; }
+  .tile { display: grid; place-items: center; aspect-ratio: 1; }
+  .lineage { display: inline-flex; align-items: center; }
+  .lineage .node, .lineage .seg { flex: none; }
+  .lineage .node { border-radius: 999px; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--accent);
+  }
+
+  /* buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+    font-family: var(--grotesk); font-weight: 600; font-size: 15px;
+    padding: 14px 22px; border-radius: 999px; border: 1px solid transparent;
+    transition: transform .18s ease, background .18s ease, color .18s ease, border-color .18s ease;
+    white-space: nowrap;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary { background: var(--accent); color: var(--ink); }
+  .btn-primary:hover { background: oklch(0.88 0.2 158); }
+  .btn-ghost { background: transparent; color: var(--paper); border-color: var(--hairline); }
+  .btn-ghost:hover { border-color: rgba(245,244,240,0.4); background: rgba(245,244,240,0.04); }
+  .btn-dark { background: var(--ink); color: var(--paper); }
+  .btn-dark:hover { background: var(--ink-3); }
+
+  /* nav */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    transition: background .3s ease, border-color .3s ease, backdrop-filter .3s;
+    border-bottom: 1px solid transparent;
+  }
+  .nav.scrolled {
+    background: rgba(10,11,13,0.72); backdrop-filter: blur(14px) saturate(1.2);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 76px; }
+  .nav-links { display: flex; align-items: center; gap: 34px; }
+  .nav-links a { font-size: 14.5px; color: rgba(245,244,240,0.72); transition: color .15s; }
+  .nav-links a:hover { color: var(--paper); }
+
+  /* section scaffolding */
+  section { position: relative; }
+  .sec-pad { padding: 132px 0; }
+  .sec-paper { background: var(--paper); color: var(--ink); }
+  .sec-label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .sec-paper .sec-label { color: var(--muted-d); }
+  h1, h2, h3 { margin: 0; }
+  .display { font-weight: 700; letter-spacing: -0.04em; line-height: 0.98; }
+
+  /* hero */
+  .hero { min-height: 100vh; display: flex; align-items: center; position: relative; overflow: hidden; }
+  .hero-img {
+    position: absolute; inset: 0; background-size: cover; background-position: center;
+    opacity: 0.62;
+  }
+  .hero-tint {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 90% at 78% 18%, oklch(0.84 0.2 158 / 0.28), transparent 55%),
+      linear-gradient(90deg, rgba(10,11,13,0.96) 0%, rgba(10,11,13,0.82) 38%, rgba(10,11,13,0.45) 100%),
+      linear-gradient(0deg, rgba(10,11,13,0.95) 2%, transparent 42%);
+  }
+  .hero-grain { position: absolute; inset: 0; opacity: 0.5;
+    background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(10,11,13,0.55) 100%); }
+
+  /* proof card */
+  .glass {
+    background: rgba(16,19,22,0.6); border: 1px solid var(--hairline);
+    backdrop-filter: blur(12px); border-radius: 18px;
+  }
+
+  /* step rail */
+  .step {
+    border-top: 1px solid var(--hairline); padding: 30px 0; cursor: default;
+    transition: padding-left .35s cubic-bezier(.2,.7,.2,1);
+  }
+  .step.active { padding-left: 22px; }
+  .step .step-no { font-family: var(--mono); font-size: 13px; color: var(--muted); transition: color .3s; }
+  .step.active .step-no { color: var(--accent); }
+  .step .step-title { font-weight: 700; letter-spacing: -0.03em; transition: color .3s; }
+
+  /* spec cards */
+  .spec-card {
+    background: var(--ink-2); border: 1px solid var(--hairline); border-radius: 16px;
+    padding: 26px; transition: border-color .25s, transform .25s;
+  }
+  .spec-card:hover { border-color: rgba(245,244,240,0.26); transform: translateY(-3px); }
+
+  /* code */
+  .code {
+    background: #0c0f12; border: 1px solid var(--hairline); border-radius: 16px;
+    font-family: var(--mono); font-size: 14px; line-height: 1.85; overflow: auto;
+  }
+  .code .c-key { color: oklch(0.84 0.2 158); }
+  .code .c-fn { color: #e8e6df; }
+  .code .c-str { color: #c7b78f; }
+  .code .c-num { color: #9fd0ff; }
+  .code .c-com { color: #5d6b63; }
+  .code .c-mut { color: #6f7d74; }
+
+  /* integration cards */
+  .int-card {
+    background: var(--paper); border: 1px solid var(--hairline-d); border-radius: 16px;
+    padding: 30px; transition: transform .25s, box-shadow .25s;
+  }
+  .int-card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -24px rgba(10,11,13,0.4); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono);
+    font-size: 12.5px; padding: 7px 12px; border-radius: 999px;
+    border: 1px solid var(--hairline); color: rgba(245,244,240,0.75);
+  }
+
+  .footer-cta { background: var(--accent); color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .nav-links { display: none; }
+    .sec-pad { padding: 90px 0; }
+    .hide-sm { display: none !important; }
+    .wrap { padding: 0 22px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script type="text/babel" src="pv-brand.jsx"></script>
+<script type="text/babel" src="pv-site.jsx"></script>
+</body>
+</html>
